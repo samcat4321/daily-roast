@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#D39A7B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Daily Roast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Yellowtail&display=swap">
+<style>
+/* Layout: one narrow phone column — tabs, month grid, selected-day panel, stats. Coffee-shop terracotta + plum. */
+:root{
+  --bg:#D39A7B; --surface:#DCA98C; --cell:#DFB197; --fg:#3E1A2B; --muted:#683A3C;
+  --line:rgba(62,26,43,.18); --ink:#461F31; --on-ink:#F7E3D3; --cream:#F3D8C2;
+  --r1:#C27866; --r2:#9E5656; --r3:#7D434A; --r4:#613442; --r5:#441E30;
+  --sage:#8E8B4E; --swatch-edge:rgba(62,26,43,.0);
+  --display:"Yellowtail","Brush Script MT",cursive;
+  --body:"Montserrat","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#271820; --surface:#33212A; --cell:#3C2832; --fg:#F3DACA; --muted:#C79D8B;
+  --line:rgba(243,218,202,.14); --ink:#E4A07F; --on-ink:#2A1820; --cream:#F3D8C2;
+  --swatch-edge:rgba(243,218,202,.28); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#271820; --surface:#33212A; --cell:#3C2832; --fg:#F3DACA; --muted:#C79D8B;
+  --line:rgba(243,218,202,.14); --ink:#E4A07F; --on-ink:#2A1820; --cream:#F3D8C2;
+  --swatch-edge:rgba(243,218,202,.28); color-scheme:dark }
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:18px 40px}
+.app{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;align-items:center;gap:12px}
+header svg{flex:none;width:64px;height:72px}
+h1{font-family:var(--display);font-weight:400;font-size:2.4rem;line-height:1;margin:0;color:var(--ink)}
+.sub{margin:4px 0 0;font-size:.8rem;color:var(--muted);letter-spacing:.02em}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{font:500 10px var(--body);fill:var(--muted)}
+.empty{font-size:.85rem;color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;background:var(--surface);padding:4px;border-radius:12px}
+.tabs button{font:600 .82rem var(--body);letter-spacing:.06em;text-transform:uppercase;border:0;background:transparent;color:var(--muted);padding:10px 4px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--on-ink)}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.monthbar{display:flex;align-items:center;justify-content:space-between}
+.monthbar h2{margin:0;font-family:var(--display);font-weight:400;font-size:2rem;color:var(--ink);line-height:1}
+.monthbar h2 span{font-family:var(--body);font-size:1rem;font-weight:500;color:var(--fg);margin-left:6px}
+.nav{display:flex;gap:6px}
+.nav button{width:36px;height:36px;border-radius:9px;border:1.5px solid var(--line);background:transparent;color:var(--fg);font-size:1.1rem;cursor:pointer}
+.nav button:disabled{opacity:.35;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.wd{font-size:.7rem;font-weight:700;text-align:center;color:var(--muted);letter-spacing:.08em;padding-bottom:2px}
+.cell{aspect-ratio:1;max-width:100%;border:0;border-radius:6px;background:var(--cell);color:var(--muted);font:600 .74rem var(--body);font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:5px 6px;cursor:pointer;position:relative;box-shadow:inset 0 0 0 1px var(--swatch-edge)}
+.cell.blank{background:transparent;box-shadow:none;cursor:default}
+.cell.future{opacity:.45;cursor:default}
+.cell.today{outline:2px solid var(--ink);outline-offset:1px}
+.cell.sel{transform:scale(1.06);box-shadow:0 4px 10px rgba(40,10,20,.25),inset 0 0 0 1px var(--swatch-edge)}
+.cell.filled{color:var(--cream)}
+.cell .mark{font-size:.66rem;font-weight:700;letter-spacing:.04em;align-self:flex-end}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.72rem;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;box-shadow:inset 0 0 0 1px var(--swatch-edge)}
+.panel{background:var(--surface);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel h3{margin:0;font-family:var(--display);font-weight:400;font-size:1.7rem;color:var(--ink);line-height:1.1}
+.panel .label{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.roasts{display:flex;flex-direction:column;gap:5px}
+.roast{display:flex;align-items:center;gap:10px;border:0;background:transparent;padding:0;cursor:pointer;color:var(--fg);font:500 .88rem var(--body);text-align:left}
+.roast .sw{width:56px;height:30px;border-radius:5px;flex:none;box-shadow:inset 0 0 0 1px var(--swatch-edge);transition:width .15s}
+.roast[aria-pressed="true"] .sw{width:76px}
+.roast .pill{opacity:0;background:var(--cream);color:#461F31;border-radius:99px;padding:3px 12px;font-weight:600;font-size:.8rem}
+.roast[aria-pressed="true"] .pill{opacity:1}
+.roast .nm{color:var(--muted);font-size:.8rem}
+.roast[aria-pressed="true"] .nm{display:none}
+textarea{width:100%;box-sizing:border-box;min-height:110px;resize:vertical;border:0;border-radius:10px;background:var(--cell);color:var(--fg);font:400 .92rem/1.55 var(--body);padding:10px 12px}
+textarea::placeholder{color:var(--muted);font-style:italic}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:0;border-radius:10px;padding:10px 16px;font:600 .85rem var(--body);cursor:pointer;background:var(--ink);color:var(--on-ink)}
+.btn.ghost{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 1.5px var(--line)}
+.chip{border:0;border-radius:99px;padding:8px 14px;font:600 .82rem var(--body);background:var(--cell);color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.state{font-size:.9rem;color:var(--fg)}
+.state b{font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{padding:10px 4px;border-top:1.5px solid var(--line)}
+.stat .v{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat .k{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.note{font-size:.75rem;color:var(--muted)}
+.info{display:flex;flex-direction:column;gap:8px;background:var(--cell);border-radius:12px;padding:12px 14px}
+.info .tag{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;background:var(--cream);color:#461F31;border-radius:99px;padding:4px 12px 4px 4px;font-weight:600;font-size:.85rem}
+.info .tag i{width:22px;height:22px;border-radius:99px;flex:none}
+.info .tag.plain{padding-left:12px}
+.info p{margin:0;font-size:.9rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.info .meta{font-size:.75rem;color:var(--muted)}
+.link{border:0;background:none;padding:0;color:var(--ink);font:600 .8rem var(--body);text-decoration:underline;text-underline-offset:3px;cursor:pointer;align-self:flex-start}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--on-ink);padding:10px 16px;border-radius:10px;font-weight:600;font-size:.85rem;max-width:calc(100% - 32px);box-shadow:0 8px 20px rgba(0,0,0,.25)}
+/* ---- minimal overrides ---- */
+.app{gap:22px}
+h1{font-size:1.9rem}
+.tabs{background:transparent;padding:0;gap:0;border-bottom:1.5px solid var(--line);border-radius:0}
+.tabs button{border-radius:0;padding:10px 2px;font-size:.74rem;letter-spacing:.1em;margin-bottom:-1.5px;border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{background:transparent;color:var(--ink);border-bottom-color:var(--ink)}
+.monthbar h2{font-family:var(--body);font-size:1rem;font-weight:600;color:var(--fg)}
+.monthbar h2 span{font-weight:400;color:var(--muted)}
+.nav button{border:0;width:32px;height:32px}
+.grid{gap:4px}
+.cell{border-radius:4px;justify-content:center;align-items:center;font-weight:500;font-size:.72rem;padding:0;box-shadow:none}
+.cell .mark{display:none}
+.cell.today{outline-width:1.5px}
+.cell.sel{transform:none;box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--ink)}
+.legend{font-size:.7rem;gap:4px 10px}
+.legend i{width:9px;height:9px;border-radius:99px}
+.panel{background:transparent;padding:0;gap:12px}
+.panel h3{font-family:var(--body);font-size:.95rem;font-weight:600;color:var(--fg)}
+.roasts{flex-direction:row;justify-content:space-between;gap:4px}
+.roast{flex-direction:column;gap:6px;flex:1;font-size:.7rem;color:var(--muted);text-align:center}
+.roast .sw,.roast[aria-pressed="true"] .sw{width:34px;height:34px;border-radius:99px}
+.roast[aria-pressed="true"] .sw{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--ink)}
+.roast .pill,.roast .nm{display:none}
+.roast .wd2{display:block}
+.roast[aria-pressed="true"]{color:var(--ink);font-weight:700}
+textarea{min-height:84px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn{padding:8px 14px;font-size:.8rem}
+.chip{padding:6px 12px;font-size:.78rem;background:transparent;box-shadow:inset 0 0 0 1.5px var(--line)}
+.chip[aria-pressed="true"]{box-shadow:none}
+.info{background:transparent;padding:0}
+.info .tag{background:transparent;color:var(--fg);padding:0}
+.info .tag.plain{padding:0}
+.stat{border-top-width:1px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.signin{display:flex;flex-direction:column;gap:12px;align-items:flex-start;padding-top:8px}
+.signin p{margin:0;color:var(--muted);font-size:.9rem;max-width:34ch}
+.app.locked>:not(header):not(#signin){display:none}
+.app:not(.locked) #signin{display:none}
+.field{border:0;border-radius:10px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--fg);font:500 .88rem var(--body);padding:8px 10px}
+#shours{width:84px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+img,svg{max-width:100%}
+.foot{display:flex;justify-content:space-between;gap:12px;align-items:center}
+body{margin:0;padding-top:calc(18px + env(safe-area-inset-top,0px))}
+</style>
+</head>
+<body>
+<div class="app locked" id="app">
+  <header>
+    <svg viewBox="0 0 64 72" aria-hidden="true" hidden>
+      <path d="M22 4c-6 0-9 5-7 10 1 3 4 4 3 7-1 2 2 3 4 1 2-2 0-4 2-6 4-3 6-12-2-12z" fill="var(--cream)" opacity=".9"/>
+      <circle cx="20.5" cy="10" r="1" fill="#7D434A"/><circle cx="25" cy="10" r="1" fill="#7D434A"/>
+      <path d="M20.5 13q2.3 2 4.5 0" stroke="#7D434A" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <path d="M12 28h40l-2 6H14z" fill="#7D434A"/>
+      <rect x="15" y="24" width="34" height="5" rx="2.5" fill="#613442"/>
+      <path d="M15 34h34l-4 34H19z" fill="var(--cream)"/>
+      <path d="M17 44h30l-1.8 15H18.8z" fill="#C27866"/>
+      <path d="M24 47v9M30 47v9M36 47v9" stroke="#9E5656" stroke-width="1.6" stroke-linecap="round"/>
+      <ellipse cx="54" cy="64" rx="5" ry="3.4" fill="var(--sage)"/><ellipse cx="9" cy="66" rx="4" ry="2.8" fill="var(--sage)"/>
+    </svg>
+    <div>
+      <h1>Daily Roast</h1>
+      <p class="sub" id="sub" hidden></p>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-mood" data-tab="mood">Mood</button>
+    <button role="tab" id="tab-focus" data-tab="focus">Focus</button>
+    <button role="tab" id="tab-move" data-tab="move">Move</button>
+    <button role="tab" id="tab-meds" data-tab="meds">Meds</button>
+    <button role="tab" id="tab-stats" data-tab="stats">Trends</button>
+  </div>
+
+  <div class="monthbar">
+    <h2 id="mtitle">October <span>2026</span></h2>
+    <div class="nav"><button id="prev" aria-label="Previous month">‹</button><button id="next" aria-label="Next month">›</button></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="legend" id="legend"></div>
+  <section class="panel" id="panel"></section>
+  <div class="stats" id="stats"></div>
+  <div class="foot"><p class="note" id="syncnote"></p><button class="link" id="signout" hidden>Sign out</button></div>
+  <section class="signin" id="signin">
+    <p id="signinmsg">Loading…</p>
+    <button class="btn" id="signinbtn" hidden>Continue with Google</button>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const ROASTS=[
+  {k:1,name:'Light roast',v:'--r1'},
+  {k:2,name:'Medium',v:'--r2'},
+  {k:3,name:'Medium-dark',v:'--r3'},
+  {k:4,name:'Dark',v:'--r4'},
+  {k:5,name:'Espresso',v:'--r5'}];
+/* Mood and Focus share the five roast levels; each keeps its own words and fields */
+const SCALES={
+  mood:{lvl:'r',txt:'n',words:['great','good','okay','meh','rough'],ask:'How are you?',ph:"what's up?",pick:'How was your mood?'},
+  focus:{lvl:'p',txt:'pn',words:['on fire','solid','okay','slow','stuck'],ask:'What did you get done?',ph:'wins, blockers, what pulled you off track…',pick:'How productive was today?'}};
+const TYPES=['Gym','Walk','Stretching','Yoga','Badminton','Other'];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const pad=n=>String(n).padStart(2,'0');
+const now=()=>new Date();
+const ymOf=(y,m)=>`${y}-${pad(m+1)}`;
+const hhmm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmtMin=m=>`${Math.floor(m/60)}h${m%60?' '+pad(m%60)+'m':''}`;
+const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':').map(Number);return `${(h%12)||12}:${pad(m)} ${h<12?'am':'pm'}`};
+
+const T=now();
+const S={bed:null,trend:'mood',editing:false,tab:'mood',y:T.getFullYear(),m:T.getMonth(),sel:T.getDate(),months:{},loaded:{},mode:'local'};
+let db=null,uid=null,unsub=null;const writing={},dirty={};const waiters={};
+
+/* ---------- storage ---------- */
+function localLoad(){try{const raw=localStorage.getItem('daily-roast');if(raw)S.months=JSON.parse(raw)||{}}catch(e){}}
+function localSave(){try{localStorage.setItem('daily-roast',JSON.stringify(S.months))}catch(e){}}
+let store=null;
+function markLoaded(ym){S.loaded[ym]=true;(waiters[ym]||[]).forEach(f=>f());waiters[ym]=[]}
+const whenLoaded=ym=>(S.loaded[ym]||S.mode!=='db')?Promise.resolve():new Promise(r=>(waiters[ym]=waiters[ym]||[]).push(r));
+function watch(ym){
+  if(S.mode!=='db')return;
+  if(unsub)unsub();
+  unsub=store.watch(ym,days=>{
+    if(writing[ym]||dirty[ym])return;
+    S.months[ym]=days;markLoaded(ym);render();
+  },()=>note('Sync paused. Reload the page to reconnect.'));
+}
+async function persist(ym){
+  if(S.mode!=='db'){localSave();return}
+  dirty[ym]=true;if(writing[ym])return;writing[ym]=true;
+  while(dirty[ym]){dirty[ym]=false;
+    try{await store.save(ym,S.months[ym]||{})}
+    catch(e){toast(e&&e.code==='permission-denied'?'This account can\u2019t save here. Check the Firestore rules.':'Could not save. Check your connection and try again.');break}}
+  writing[ym]=false;
+}
+function day(ym,d,create){const mo=S.months[ym]||(create?(S.months[ym]={}):{});return mo[d]||(create?(mo[d]={}):null)}
+function clean(ym,d){const o=S.months[ym]&&S.months[ym][d];if(o&&!o.r&&!o.n&&!o.p&&!o.pn&&!o.w&&!o.m&&!o.s)delete S.months[ym][d]}
+
+/* ---------- helpers ---------- */
+const cur=()=>ymOf(S.y,S.m);
+const isFuture=(y,m,d)=>new Date(y,m,d)>new Date(T.getFullYear(),T.getMonth(),T.getDate());
+const isToday=(y,m,d)=>y===T.getFullYear()&&m===T.getMonth()&&d===T.getDate();
+const daysIn=(y,m)=>new Date(y,m+1,0).getDate();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let tt;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
+function note(msg){document.getElementById('syncnote').textContent=msg}
+
+/* ---------- render ---------- */
+function render(){
+  const ym=cur(),dim=daysIn(S.y,S.m);
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
+  document.getElementById('mtitle').innerHTML=`${MONTHS[S.m]} <span>${S.y}</span>`;
+  document.getElementById('next').disabled=(S.y>T.getFullYear()||(S.y===T.getFullYear()&&S.m>=T.getMonth()));
+  const sc=SCALES[S.tab];
+  const trends=S.tab==='stats';
+  document.getElementById('grid').hidden=trends;document.getElementById('legend').hidden=trends;
+  document.getElementById('sub').textContent={mood:'Pick today’s roast for your mood and write a little',focus:'Rate your day’s focus and note what got done',move:'Tap a day to log a workout',meds:'Tap a day to mark your meds'}[S.tab];
+
+  let g=['M','T','W','T','F','S','S'].map(w=>`<div class="wd">${w}</div>`).join('');
+  const lead=(new Date(S.y,S.m,1).getDay()+6)%7;
+  for(let i=0;i<lead;i++)g+='<div class="cell blank"></div>';
+  const mo=S.months[ym]||{};
+  for(let d=1;d<=dim;d++){
+    const o=mo[d]||{},fut=isFuture(S.y,S.m,d);let bg='',mark='',filled=false;
+    if(sc&&o[sc.lvl]){bg=`background:var(${ROASTS[o[sc.lvl]-1].v})`;filled=true;mark=o[sc.txt]?'✎':''}
+    if(S.tab==='move'&&o.w){bg='background:var(--r3)';filled=true;mark=esc((o.w.t||'').slice(0,3))}
+    if(S.tab==='meds'&&o.m){bg='background:var(--r2)';filled=true;mark='✓'}
+    const cls=['cell',fut?'future':'',filled?'filled':'',isToday(S.y,S.m,d)?'today':'',S.sel===d?'sel':''].join(' ');
+    g+=`<button class="${cls}" style="${bg}" data-d="${d}" ${fut?'disabled':''} aria-label="${MONTHS[S.m]} ${d}"><span>${d}</span><span class="mark">${mark}</span></button>`;
+  }
+  document.getElementById('grid').innerHTML=g;
+
+  document.getElementById('legend').innerHTML=sc
+    ?ROASTS.map((r,i)=>`<span><i style="background:var(${r.v})"></i>${sc.words[i]}</span>`).join('')
+    :'';
+
+  renderPanel();renderStats();
+}
+
+function renderPanel(){
+  const p=document.getElementById('panel'),ym=cur(),d=S.sel;
+  const ta=document.getElementById('journal');
+  const keep=ta&&ta.dataset.key===S.tab+'-'+ym+'-'+d?{v:ta.value,f:document.activeElement===ta,s:ta.selectionStart}:null;
+  if(S.tab==='stats'){p.innerHTML=trendChart();return}
+  if(!d||d>daysIn(S.y,S.m)){p.innerHTML='<p class="state">Pick a day on the grid.</p>';return}
+  const o=day(ym,d)||{};const title=`${MONTHS[S.m].slice(0,3)} ${d}${isToday(S.y,S.m,d)?' · today':''}`;
+  const ready=S.loaded[ym]||S.mode==='local';
+  if(!ready){p.innerHTML=`<h3>${title}</h3><p class="state">Brewing your log…</p>`;return}
+  const sc=SCALES[S.tab];
+  const saved=sc?(o[sc.lvl]||o[sc.txt]):S.tab==='move'?o.w:o.m;
+  if(saved&&!S.editing){
+    let body='';
+    if(sc){const l=o[sc.lvl];
+      body=(l?`<span class="tag"><i style="background:var(${ROASTS[l-1].v})"></i>${sc.words[l-1]}</span>`:'')
+        +(o[sc.txt]?`<p>${esc(o[sc.txt])}</p>`:'<span class="meta">No note written.</span>');}
+    else if(S.tab==='move')body=`<span class="tag plain">${esc(o.w.t)}</span>${o.w.at?`<span class="meta">Logged at ${fmtTime(o.w.at)}</span>`:''}`;
+    else body=`<span class="tag plain">✓ Taken</span>${o.m.at?`<span class="meta">at ${fmtTime(o.m.at)}</span>`:''}`;
+    p.innerHTML=`<h3>${title}</h3><div class="info">${body}<button class="link" id="edit">Edit</button></div>`;
+    return;
+  }
+  if(sc){
+    p.innerHTML=`<h3>${title}</h3><div class="label">${sc.pick}</div>
+      <div class="roasts">${ROASTS.map((r,i)=>`<button class="roast" data-r="${r.k}" aria-pressed="${o[sc.lvl]===r.k}"><span class="sw" style="background:var(${r.v})"></span><span class="wd2">${sc.words[i]}</span><span class="nm">${r.name} · ${sc.words[i]}</span></button>`).join('')}</div>
+      <label class="label" for="journal">${sc.ask}</label>
+      <textarea id="journal" data-key="${S.tab}-${ym}-${d}" placeholder="${sc.ph}">${esc(o[sc.txt]||'')}</textarea>
+      <div class="row"><button class="btn" id="savenote">Save entry</button>${o[sc.lvl]||o[sc.txt]?'<button class="btn ghost" id="clearroast">Clear day</button>':''}</div>`;
+    if(keep){const t=document.getElementById('journal');t.value=keep.v;if(keep.f){t.focus();try{t.setSelectionRange(keep.s,keep.s)}catch(e){}}}
+  }else if(S.tab==='move'){
+    p.innerHTML=`<h3>${title}</h3>
+      <p class="state">${o.w?`Logged <b>${esc(o.w.t)}</b>${o.w.at?' at '+fmtTime(o.w.at):''}.`:'No workout logged.'}</p>
+      <div class="label">What did you do?</div>
+      <div class="row">${TYPES.map(t=>`<button class="chip" data-type="${t}" aria-pressed="${!!o.w&&o.w.t===t}">${t}</button>`).join('')}</div>
+      ${o.w?'<div class="row"><button class="btn ghost" id="clearmove">Mark as rest day</button></div>':''}`;
+  }else{
+    p.innerHTML=`<h3>${title}</h3>
+      <p class="state">${o.m?`Taken${o.m.at?' at <b>'+fmtTime(o.m.at)+'</b>':''}.`:'Not logged yet.'}</p>
+      <div class="row">${o.m?'<button class="btn ghost" id="untake">Undo</button>':'<button class="btn" id="take">Mark as taken</button>'}</div>`;
+  }
+}
+
+function trendChart(){
+  const ym=cur(),mo=S.months[ym]||{},dim=daysIn(S.y,S.m);
+  const chips=`<div class="row">${[['mood','Mood'],['focus','Focus'],['sleep','Sleep']].map(([k,l])=>`<button class="chip" data-trend="${k}" aria-pressed="${S.trend===k}">${l}</button>`).join('')}</div>`;
+  if(S.mode==='db'&&!S.loaded[ym])return chips+'<p class="empty">Brewing your log…</p>';
+  if(S.trend==='sleep')return chips+sleepChart(mo,dim)+sleepForm(mo,dim);
+  const sc=SCALES[S.trend];
+  const pts=[];for(let d=1;d<=dim;d++){const l=mo[d]&&mo[d][sc.lvl];if(l)pts.push([d,l])}
+  const W=360,H=210,L=62,R=10,Tp=10,B=24,x=d=>L+(d-1)/(dim-1)*(W-L-R),y=l=>Tp+(l-1)/4*(H-Tp-B);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${sc===SCALES.mood?'Mood':'Focus'} for ${MONTHS[S.m]} ${S.y}">`;
+  sc.words.forEach((w,i)=>{const yy=y(i+1);s+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><circle cx="${L-50}" cy="${yy}" r="4" fill="var(${ROASTS[i].v})"/><text x="${L-42}" y="${yy+3.5}">${w}</text>`});
+  [1,8,15,22,dim].forEach(d=>{s+=`<text x="${x(d)}" y="${H-6}" text-anchor="middle">${d}</text>`});
+  for(let i=1;i<pts.length;i++){const[a,la]=pts[i-1],[b,lb]=pts[i];
+    s+=`<line x1="${x(a)}" y1="${y(la)}" x2="${x(b)}" y2="${y(lb)}" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" ${b-a>1?'stroke-dasharray="3 4" opacity=".55"':''}/>`}
+  pts.forEach(([d,l])=>{s+=`<circle cx="${x(d)}" cy="${y(l)}" r="4.5" fill="var(${ROASTS[l-1].v})" stroke="var(--bg)" stroke-width="2"><title>${MONTHS[S.m].slice(0,3)} ${d}: ${sc.words[l-1]}</title></circle>`});
+  s+='</svg>';
+  return chips+(pts.length?s+'<p class="empty">Dashed lines bridge days you didn’t log.</p>':`<p class="empty">No ${S.trend==='mood'?'mood':'focus'} entries in ${MONTHS[S.m]} yet.</p>`);
+}
+
+function sleepChart(mo,dim){
+  const pts=[];for(let d=1;d<=dim;d++){const s=mo[d]&&mo[d].s;if(s&&s.min>0)pts.push([d,s.min/60])}
+  if(!pts.length)return `<p class="empty">No sleep logged in ${MONTHS[S.m]} yet. Tap your bedtime tag at night and your wake-up tag in the morning, or add hours below.</p>`;
+  const top=Math.max(10,Math.ceil(Math.max(...pts.map(p=>p[1]))/2)*2);
+  const W=360,H=214,L=44,R=10,Tp=10,B=54,x=d=>L+(d-1)/(dim-1)*(W-L-R),y=h=>Tp+(1-h/top)*(H-Tp-B);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours slept in ${MONTHS[S.m]} ${S.y}">`;
+  for(let h=0;h<=top;h+=2){const yy=y(h);s+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/><text x="${L-8}" y="${yy+3.5}" text-anchor="end">${h}h</text>`}
+  for(let i=1;i<pts.length;i++){const[a,ha]=pts[i-1],[b,hb]=pts[i];
+    s+=`<line x1="${x(a)}" y1="${y(ha)}" x2="${x(b)}" y2="${y(hb)}" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" ${b-a>1?'stroke-dasharray="3 4" opacity=".55"':''}/>`}
+  pts.forEach(([d,h])=>{s+=`<circle cx="${x(d)}" cy="${y(h)}" r="4.5" fill="var(--ink)" stroke="var(--bg)" stroke-width="2"><title>${MONTHS[S.m].slice(0,3)} ${d}: ${fmtMin(Math.round(h*60))}</title></circle>`});
+  /* mood strip on the same day scale, so sleep and mood line up */
+  const sy=H-B+12,cw=Math.max(3,(W-L-R)/dim-2);
+  s+=`<text x="${L-8}" y="${sy+8}" text-anchor="end">mood</text>`;
+  for(let d=1;d<=dim;d++){const r=mo[d]&&mo[d].r;s+=`<rect x="${x(d)-cw/2}" y="${sy}" width="${cw}" height="11" rx="2" fill="${r?`var(${ROASTS[r-1].v})`:'var(--cell)'}"><title>${MONTHS[S.m].slice(0,3)} ${d}: ${r?SCALES.mood.words[r-1]:'no mood logged'}</title></rect>`}
+  [1,8,15,22,dim].forEach(d=>{s+=`<text x="${x(d)}" y="${H-6}" text-anchor="middle">${d}</text>`});
+  return s+'</svg><p class="empty">Hours slept each night, with that day’s mood underneath.</p>';
+}
+function sleepForm(mo,dim){
+  const last=(S.y===T.getFullYear()&&S.m===T.getMonth())?T.getDate():dim;
+  const sel=Math.min(S.sel||last,last),cs=mo[sel]&&mo[sel].s;
+  let opts='';for(let d=last;d>=1;d--)opts+=`<option value="${d}" ${d===sel?'selected':''}>${MONTHS[S.m].slice(0,3)} ${d}${isToday(S.y,S.m,d)?' (today)':''}</option>`;
+  const bed=S.bed?`In bed since ${fmtTime(hhmm(new Date(S.bed)))}. <button class="link" id="waketap">I'm awake</button>`:`<button class="link" id="bedtap">Going to bed now</button>`;
+  return `<div class="label">Add or fix a night</div>
+    <div class="row"><label class="sr" for="sdate">Woke up on</label><select id="sdate" class="field">${opts}</select>
+    <label class="sr" for="shours">Hours slept</label><input id="shours" class="field" type="number" min="0" max="16" step="0.25" inputmode="decimal" placeholder="hours" value="${cs?+(cs.min/60).toFixed(2):''}">
+    <button class="btn" id="ssave">Save</button></div>
+    <p class="empty">${bed}</p>`;
+}
+
+/* bedtime waiting for its wake-up tap: Firestore when signed in, else this device */
+async function bedGet(){if(S.mode==='db'&&store&&store.bedGet)return store.bedGet();try{return localStorage.getItem('daily-roast-bed')}catch(e){return null}}
+async function bedSet(v){S.bed=v||null;if(S.mode==='db'&&store&&store.bedSet)return store.bedSet(v||null);try{v?localStorage.setItem('daily-roast-bed',v):localStorage.removeItem('daily-roast-bed')}catch(e){}}
+function jumpTo(when){S.y=when.getFullYear();S.m=when.getMonth();S.sel=when.getDate();watch(cur())}
+async function bedTap(when){
+  jumpTo(when);const prev=await bedGet();await bedSet(when.toISOString());
+  const gap=prev?(when-new Date(prev))/36e5:null;
+  toast(prev&&gap>0&&gap<2?`Bedtime updated to ${fmtTime(hhmm(when))}`:'Good night. Tap the wake-up tag in the morning.');render();
+}
+async function wakeTap(when){
+  jumpTo(when);const bed=await bedGet(),gap=bed?(when-new Date(bed))/36e5:null;
+  if(bed&&gap>0&&gap<=16){
+    const ym=cur();await whenLoaded(ym);const o=day(ym,when.getDate(),true);
+    o.s={min:Math.round(gap*60),bed:hhmm(new Date(bed)),wake:hhmm(when)};persist(ym);await bedSet(null);
+    toast(`Good morning. You slept ${fmtMin(o.s.min)}.`);
+  }else{
+    if(bed)await bedSet(null);
+    toast('No bedtime logged last night. Add the hours below.');
+  }
+  render();
+}
+
+function renderStats(){
+  const ym=cur(),mo=S.months[ym]||{},dim=daysIn(S.y,S.m);
+  const elapsed=(S.y===T.getFullYear()&&S.m===T.getMonth())?T.getDate():dim;
+  let cards=[];
+  const sc=SCALES[S.tab==='stats'?S.trend:S.tab];
+  if(S.tab==='stats'&&S.trend==='sleep'){
+    const all=[],good=[],low=[],avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+    for(let d=1;d<=dim;d++){const o=mo[d];if(o&&o.s&&o.s.min>0){all.push(o.s.min);if(o.r&&o.r<=2)good.push(o.s.min);if(o.r>=4)low.push(o.s.min)}}
+    cards=[[all.length?fmtMin(Math.round(avg(all))):'—','avg sleep'],[all.length+'/'+elapsed,'nights logged'],
+      [good.length&&low.length?`${(avg(good)/60).toFixed(1)} / ${(avg(low)/60).toFixed(1)}h`:'—','good vs low mood']];
+  }else if(sc){
+    const rs=[],cnt=[0,0,0,0,0],last=[0,0,0,0,0];
+    for(let d=1;d<=dim;d++){const l=Number(mo[d]&&mo[d][sc.lvl]);if(l>=1&&l<=5){rs.push(l);cnt[l-1]++;last[l-1]=d}}
+    /* most logged level; on a tie, the one logged most recently */
+    let best=-1;for(let i=0;i<5;i++){if(!cnt[i])continue;if(best<0||cnt[i]>cnt[best]||(cnt[i]===cnt[best]&&last[i]>last[best]))best=i}
+    const top=best<0?'—':sc.words[best];
+    const avg=rs.length?sc.words[Math.round(rs.reduce((a,b)=>a+b,0)/rs.length)-1]:'—';
+    cards=[[rs.length+'/'+elapsed,'days logged'],[top,'most common'],[avg,'average']];
+  }else if(S.tab==='move'){
+    const n=Object.values(mo).filter(o=>o.w).length;
+    let streak=0;for(let d=elapsed;d>=1;d--){if(mo[d]&&mo[d].w)streak++;else if(!(d===elapsed&&isToday(S.y,S.m,d)))break}
+    const tc={};Object.values(mo).forEach(o=>{if(o.w)tc[o.w.t]=(tc[o.w.t]||0)+1});
+    const fav=Object.keys(tc).sort((a,b)=>tc[b]-tc[a])[0]||'—';
+    cards=[[n,'workouts'],[streak+(streak===1?' day':' days'),'streak'],[fav,'go-to']];
+  }else{
+    const n=Object.values(mo).filter(o=>o.m).length;
+    const pct=elapsed?Math.round(n/elapsed*100):0;
+    let streak=0;for(let d=elapsed;d>=1;d--){if(mo[d]&&mo[d].m)streak++;else if(!(d===elapsed&&isToday(S.y,S.m,d)))break}
+    cards=[[n+'/'+elapsed,'days taken'],[pct+'%','on track'],[streak+(streak===1?' day':' days'),'streak']];
+  }
+  document.getElementById('stats').innerHTML=cards.map(([v,k])=>`<div class="stat"><div class="v">${esc(v)}</div><div class="k">${k}</div></div>`).join('');
+}
+
+/* ---------- actions ---------- */
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.tab=b.dataset.tab;S.editing=false;render()});
+document.getElementById('grid').addEventListener('click',e=>{const b=e.target.closest('.cell[data-d]');if(!b||b.disabled)return;S.sel=+b.dataset.d;S.editing=false;render()});
+function goMonth(delta){let m=S.m+delta,y=S.y;if(m<0){m=11;y--}if(m>11){m=0;y++}S.y=y;S.m=m;S.editing=false;S.sel=(isToday(y,m,T.getDate())?T.getDate():null);watch(cur());render()}
+document.getElementById('prev').onclick=()=>goMonth(-1);
+document.getElementById('next').onclick=()=>goMonth(1);
+
+document.getElementById('panel').addEventListener('change',e=>{if(e.target.id==='sdate'){S.sel=+e.target.value;render()}});
+document.getElementById('panel').addEventListener('click',e=>{
+  const ym=cur(),d=S.sel,b=e.target.closest('button');if(!b)return;
+  const sc=SCALES[S.tab];
+  if(b.dataset.trend){S.trend=b.dataset.trend;render();return}
+  if(b.id==='bedtap'){bedTap(new Date());return}
+  if(b.id==='waketap'){wakeTap(new Date());return}
+  if(b.id==='ssave'){
+    const sd=+document.getElementById('sdate').value,v=parseFloat(document.getElementById('shours').value);
+    if(isFinite(v)&&(v<0||v>16)){toast('Enter hours between 0 and 16.');return}
+    const o=day(ym,sd,true);S.sel=sd;
+    if(!isFinite(v)||v===0){delete o.s;clean(ym,sd);persist(ym);render();toast('Sleep cleared for '+MONTHS[S.m].slice(0,3)+' '+sd);return}
+    o.s={min:Math.round(v*60)};persist(ym);render();toast(`Saved ${fmtMin(o.s.min)} for ${MONTHS[S.m].slice(0,3)} ${sd}`);return}
+  if(b.id==='edit'){S.editing=true;render();const t=document.getElementById('journal');if(t)t.focus();return}
+  if(b.dataset.r&&sc){S.editing=true;const o=day(ym,d,true);const ta=document.getElementById('journal');const v=ta?ta.value.trim():'';if(v)o[sc.txt]=v;
+    o[sc.lvl]=+b.dataset.r;persist(ym);render();toast(`${ROASTS[o[sc.lvl]-1].name} · ${sc.words[o[sc.lvl]-1]}`)}
+  else if(b.id==='savenote'&&sc){const o=day(ym,d,true);const v=document.getElementById('journal').value.trim();if(v)o[sc.txt]=v;else delete o[sc.txt];clean(ym,d);persist(ym);S.editing=false;render();toast('Entry saved')}
+  else if(b.id==='clearroast'&&sc){const o=day(ym,d);if(o){delete o[sc.lvl];delete o[sc.txt];clean(ym,d);persist(ym)}render()}
+  else if(b.dataset.type){const o=day(ym,d,true);o.w={t:b.dataset.type,at:(o.w&&o.w.at)||(isToday(S.y,S.m,d)?hhmm(now()):'')};persist(ym);S.editing=false;render();toast(b.dataset.type+' logged')}
+  else if(b.id==='clearmove'){const o=day(ym,d);if(o){delete o.w;clean(ym,d);persist(ym)}render()}
+  else if(b.id==='take'){const o=day(ym,d,true);o.m={at:isToday(S.y,S.m,d)?hhmm(now()):''};persist(ym);S.editing=false;render();toast('Meds marked as taken')}
+  else if(b.id==='untake'){const o=day(ym,d);if(o){delete o.m;clean(ym,d);persist(ym)}render()}
+});
+
+/* ---------- NFC links: #roast #move #meds open a tab; #log-move and #log-meds log today ---------- */
+async function handleHash(){
+  const h=(location.hash||'').slice(1).toLowerCase();if(!h)return;
+  /* clear one-shot log links so a reload doesn't log again */
+  if(h.startsWith('log-'))try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+  if(['sleep','log-bed','log-wake'].includes(h)){S.tab='stats';S.trend='sleep';S.y=T.getFullYear();S.m=T.getMonth();S.sel=T.getDate();watch(cur());render();
+    if(h==='log-bed')await bedTap(new Date());if(h==='log-wake')await wakeTap(new Date());return}
+  let tab=h.replace('log-','');if(tab==='roast')tab='mood';if(tab==='productivity')tab='focus';
+  if(tab==='trends')tab='stats';
+  if(['mood','focus','move','meds','stats'].includes(tab))S.tab=tab;
+  S.y=T.getFullYear();S.m=T.getMonth();S.sel=T.getDate();watch(cur());render();
+  if(!h.startsWith('log-')||!['move','meds'].includes(tab))return;
+  const ym=cur();await whenLoaded(ym);const o=day(ym,T.getDate(),true);
+  if(tab==='move'){if(o.w){toast(`Already logged today: ${o.w.t}`)}else{o.w={t:'Gym',at:hhmm(now())};persist(ym);toast('Workout logged. Tap a type to change it.')}}
+  if(tab==='meds'){if(o.m){toast(`Already taken today${o.m.at?' at '+fmtTime(o.m.at):''}`)}else{o.m={at:hhmm(now())};persist(ym);toast('Meds logged at '+fmtTime(o.m.at))}}
+  render();
+}
+window.addEventListener('hashchange',handleHash);
+
+/* ---------- boot (called by the Firebase module below) ---------- */
+const app=document.getElementById('app');
+window.DR={
+  start(mode,adapter,label){
+    S.mode=mode;store=adapter||null;S.loaded={};S.months={};
+    if(mode==='local'){localLoad();note('Firebase isn\u2019t set up yet, so entries save on this device only.')}
+    else note(label||'');
+    app.classList.remove('locked');document.getElementById('signout').hidden=mode!=='db';
+    const sleepLink=/^#log-(bed|wake)$/i.test(location.hash);
+    if(location.hash)handleHash();else{watch(cur());render()}
+    /* a bed/wake link sets the bedtime itself; reading it here too could overwrite that */
+    if(!sleepLink)bedGet().then(v=>{S.bed=v||null;render()}).catch(()=>{});
+  },
+  setBed(v){S.bed=v||null;render()},
+  lock(msg,showBtn){
+    if(unsub){unsub();unsub=null}
+    app.classList.add('locked');document.getElementById('signinmsg').textContent=msg;
+    document.getElementById('signinbtn').hidden=!showBtn;
+  }
+};
+render();
+</script>
+
+<script type="module">
+/* ====== 1. Paste your Firebase web config here (Project settings → Your apps → Web app) ====== */
+const firebaseConfig = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_PROJECT_ID.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
+/* ============================================================================================== */
+
+const V = "10.12.2";
+if (firebaseConfig.apiKey.startsWith("PASTE")) {
+  window.DR.start("local");
+} else {
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+  const { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } =
+    await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+  const { initializeFirestore, persistentLocalCache, doc, setDoc, getDoc, deleteDoc, onSnapshot, collectionGroup } =
+    await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+  // Local cache keeps the app usable offline and syncs when you're back online
+  const fs = initializeFirestore(fbApp, { localCache: persistentLocalCache() });
+  const provider = new GoogleAuthProvider();
+
+  document.getElementById("signinbtn").onclick = async () => {
+    try { await signInWithPopup(auth, provider); }
+    catch (e) {
+      if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") signInWithRedirect(auth, provider);
+      else if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request")
+        window.DR.lock("Sign-in failed (" + e.code + "). Try again.", true);
+    }
+  };
+  document.getElementById("signout").onclick = () => signOut(auth);
+
+  onAuthStateChanged(auth, user => {
+    if (!user) { window.DR.lock("Sign in to keep your log synced across your phone and laptop.", true); return; }
+    const monthRef = ym => doc(fs, "users", user.uid, "months", ym);
+    const bedRef = doc(fs, "users", user.uid, "meta", "sleep");
+    window.DR.start("db", {
+      watch(ym, onData, onError) {
+        return onSnapshot(monthRef(ym), snap => {
+          const d = snap.exists() ? snap.data() : null;
+          onData(d && d.days ? JSON.parse(JSON.stringify(d.days)) : {});
+        }, onError);
+      },
+      save(ym, days) { return setDoc(monthRef(ym), { days }); },
+      async bedGet() { const b = await getDoc(bedRef); return b.exists() ? (b.data().bed || null) : null; },
+      bedSet(v) { return setDoc(bedRef, { bed: v || null }); }
+    }, "Synced as " + (user.email || "you"));
+
+    // NFC inbox: background taps from MacroDroid land here; add each to the log, then clear it.
+    const p2 = n => String(n).padStart(2, "0");
+    let busy = Promise.resolve();
+    const absorb = async ev => {
+      const { type, at } = ev.data();
+      const n = String(at || "").match(/\d+/g) || [];
+      if (n.length >= 5 && type === "bed") {
+        const [Y, M, D, h, mi] = n.map(Number), when = new Date(Y, M - 1, D, h, mi);
+        await setDoc(bedRef, { bed: when.toISOString() }); window.DR.setBed(when.toISOString());
+      } else if (n.length >= 5 && type === "wake") {
+        const [Y, M, D, h, mi] = n.map(Number), when = new Date(Y, M - 1, D, h, mi);
+        const b = await getDoc(bedRef), bed = b.exists() ? b.data().bed : null;
+        const gap = bed ? (when - new Date(bed)) / 36e5 : null;
+        if (bed && gap > 0 && gap <= 16) {
+          const ref = monthRef(`${Y}-${p2(M)}`), cur = await getDoc(ref);
+          const days = (cur.exists() && cur.data().days) ? JSON.parse(JSON.stringify(cur.data().days)) : {};
+          const bd = new Date(bed);
+          days[D] = { ...(days[D] || {}), s: { min: Math.round(gap * 60), bed: `${p2(bd.getHours())}:${p2(bd.getMinutes())}`, wake: `${p2(h)}:${p2(mi)}` } };
+          await setDoc(ref, { days });
+        }
+        if (bed) { await setDoc(bedRef, { bed: null }); window.DR.setBed(null); }
+      } else if (n.length >= 5 && (type === "meds" || type === "move")) {
+        const [Y, M, D, h, mi] = n.map(Number);
+        const ref = monthRef(`${Y}-${p2(M)}`);
+        const cur = await getDoc(ref);
+        const days = (cur.exists() && cur.data().days) ? JSON.parse(JSON.stringify(cur.data().days)) : {};
+        const day = days[D] || {}, t = `${p2(h)}:${p2(mi)}`;
+        let changed = false;
+        if (type === "meds" && !day.m) { day.m = { at: t }; changed = true; }
+        if (type === "move" && !day.w) { day.w = { t: "Gym", at: t }; changed = true; }
+        if (changed) { days[D] = day; await setDoc(ref, { days }); }
+      }
+      await deleteDoc(ev.ref);
+    };
+    if (window.__inboxUnsub) window.__inboxUnsub();
+    window.__inboxUnsub = onSnapshot(collectionGroup(fs, "nfcEvents"), snap => {
+      const ts = d => { const n = String(d.data().at || "").match(/\d+/g) || []; return n.length >= 5 ? new Date(+n[0], n[1] - 1, +n[2], +n[3], +n[4]).getTime() : 0; };
+      snap.docChanges().filter(c => c.type === "added").sort((a, b) => ts(a.doc) - ts(b.doc)).forEach(c => {
+        busy = busy.then(() => absorb(c.doc)).catch(() => {});
+      });
+    }, () => {});
+  });
+}
+</script>
+</body>
+</html>
