@@ -491,16 +491,20 @@ render();
 <script type="module">
 /* ====== 1. Paste your Firebase web config here (Project settings → Your apps → Web app) ====== */
 const firebaseConfig = {
-    apiKey: "AIzaSyDdWiopG2Bh0-l5fL4pd9pKXzpa6goeJ-s",
-    authDomain: "daily-roast-fe188.firebaseapp.com",
-    projectId: "daily-roast-fe188",
-    storageBucket: "daily-roast-fe188.firebasestorage.app",
-    messagingSenderId: "529235875989",
-    appId: "1:529235875989:web:c5c33c09615ec731f6a39c"
-  };
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_PROJECT_ID.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
 /* ============================================================================================== */
 
 const V = "10.12.2";
+/* If anything below fails, show why on the page instead of sitting on "Loading…" */
+const fail = e => window.DR.lock("Couldn\u2019t start sync: " + ((e && (e.code || e.message)) || e) + ". Send this message to whoever set up the app.", false);
+window.addEventListener("unhandledrejection", ev => fail(ev.reason));
+setTimeout(() => { if (document.getElementById("signinmsg").textContent === "Loading…" && document.getElementById("app").classList.contains("locked")) fail("timed out loading Firebase (check your connection)"); }, 15000);
 if (firebaseConfig.apiKey.startsWith("PASTE")) {
   window.DR.start("local");
 } else {
@@ -545,9 +549,18 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     // NFC inbox: background taps from MacroDroid land here; add each to the log, then clear it.
     const p2 = n => String(n).padStart(2, "0");
     let busy = Promise.resolve();
+    /* "at" is either MacroDroid's {system_time} (Unix seconds) or a "Y-M-D h:m" string; unreadable → now */
+    const parseAt = at => {
+      const t = String(at || "").trim();
+      if (/^\d{10}$/.test(t)) return new Date(+t * 1000);
+      if (/^\d{13}$/.test(t)) return new Date(+t);
+      const m = t.match(/\d+/g) || [];
+      return m.length >= 5 ? new Date(+m[0], m[1] - 1, +m[2], +m[3], +m[4]) : new Date();
+    };
     const absorb = async ev => {
       const { type, at } = ev.data();
-      const n = String(at || "").match(/\d+/g) || [];
+      const w0 = parseAt(at);
+      const n = [w0.getFullYear(), w0.getMonth() + 1, w0.getDate(), w0.getHours(), w0.getMinutes()];
       if (n.length >= 5 && type === "bed") {
         const [Y, M, D, h, mi] = n.map(Number), when = new Date(Y, M - 1, D, h, mi);
         await setDoc(bedRef, { bed: when.toISOString() }); window.DR.setBed(when.toISOString());
@@ -578,7 +591,7 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     };
     if (window.__inboxUnsub) window.__inboxUnsub();
     window.__inboxUnsub = onSnapshot(collectionGroup(fs, "nfcEvents"), snap => {
-      const ts = d => { const n = String(d.data().at || "").match(/\d+/g) || []; return n.length >= 5 ? new Date(+n[0], n[1] - 1, +n[2], +n[3], +n[4]).getTime() : 0; };
+      const ts = d => parseAt(d.data().at).getTime();
       snap.docChanges().filter(c => c.type === "added").sort((a, b) => ts(a.doc) - ts(b.doc)).forEach(c => {
         busy = busy.then(() => absorb(c.doc)).catch(() => {});
       });
